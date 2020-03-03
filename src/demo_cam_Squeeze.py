@@ -181,7 +181,7 @@ def cam(arg, detector):
                 print(result)
 
                 pub.publish(obj_info)
-                rate.sleep()                
+                #rate.sleep()                
 
                 del result                        
                 

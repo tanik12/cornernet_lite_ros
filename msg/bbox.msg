@@ -1,0 +1,1 @@
+object_info[] bounding_box
