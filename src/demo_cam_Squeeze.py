@@ -1,12 +1,12 @@
 import rospy
-from cornernet_lite_ros.msg import object_info
+from cornernet_lite_ros.msg import object_info, bbox, bboxes
 
 import sys
 sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
 from core.detectors import CornerNet_Squeeze
 from core.vis_utils import draw_bboxes, extract_specific_object
-import sys
+
 import glob
 import os
 
@@ -58,9 +58,8 @@ def cam(arg, detector):
         imgs_path = load_color4train(data_path)
         save_flag = True
 
-    obj_info = object_info()
-    pub = rospy.Publisher('/obj_info', object_info, queue_size=1)
-    rate = rospy.Rate(2)
+    ###obj_info = object_info()
+    pub = rospy.Publisher('/bboxes_info', bboxes, queue_size=1)
 
     #while True:
     while not rospy.is_shutdown():
@@ -75,22 +74,22 @@ def cam(arg, detector):
                 print("画像の取得に失敗しました。")
                 continue
               
-            image, bboxes, bboxes_traffic, bboxes_pdstrn = obj_inference(detector, frame)
+            image, bounding_boxes, bboxes_traffic, bboxes_pdstrn = obj_inference(detector, frame)
                                
             traffic_trm_imges = []
-            pdstrn_trm_imges = []
-            trm_imges_dict = {}
-            bboxes_dict = {"traffic_signal":bboxes_traffic, "pedestrian_signal":bboxes_pdstrn}
+            pdstrn_trm_imges  = []
+            trm_imges_dict    = {}
+            bboxes_dict       = {"traffic_signal":bboxes_traffic, "pedestrian_signal":bboxes_pdstrn}
 
             result = {}
 
             if bboxes_traffic.shape[0] > 0:
                 try:
-                    for bbox in bboxes_traffic:
-                        x1 = int(bbox[0])
-                        y1 = int(bbox[1])
-                        x2 = int(bbox[2])
-                        y2 = int(bbox[3])
+                    for bbox_traffic in bboxes_traffic:
+                        x1 = int(bbox_traffic[0])
+                        y1 = int(bbox_traffic[1])
+                        x2 = int(bbox_traffic[2])
+                        y2 = int(bbox_traffic[3])
     
                         trm_img = image[y1:y2,x1:x2]
                         traffic_trm_imges.append([trm_img])
@@ -99,89 +98,66 @@ def cam(arg, detector):
 
             if bboxes_pdstrn.shape[0] > 0:
                 try:
-                    for bbox in bboxes_pdstrn:
-                        x1 = int(bbox[0])
-                        y1 = int(bbox[1])
-                        x2 = int(bbox[2])
-                        y2 = int(bbox[3])
+                    for bbox_pdstrn in bboxes_pdstrn:
+                        x1 = int(bbox_pdstrn[0])
+                        y1 = int(bbox_pdstrn[1])
+                        x2 = int(bbox_pdstrn[2])
+                        y2 = int(bbox_pdstrn[3])
                         
                         trm_img = image[y1:y2,x1:x2]
                         pdstrn_trm_imges.append([trm_img])
                 except:
                     print("歩行者信号機のトリミングを試みましたが失敗しました")
 
-            trm_imges_dict["traffic_signal"] = traffic_trm_imges
+            trm_imges_dict["traffic_signal"]    = traffic_trm_imges
             trm_imges_dict["pedestrian_signal"] = pdstrn_trm_imges
 
-            array_tlx = []
-            array_tly = []
-            array_brx = []
-            array_bry = []
-            array_obj_pval = []
-            array_color_label = []
-            array_color_pval = []
-
             if len(trm_imges_dict["traffic_signal"]) + len(trm_imges_dict["pedestrian_signal"]) > 0:
+                mass_list4pub = []
+                mass_list4draw = []
+
+
                 for obj_name in ["traffic_signal", "pedestrian_signal"]:
-                    mass_list = []
-                    bboxes_info = bboxes_dict[obj_name]
+                    obj_info = object_info()
+
+                    bboxes_arr = bboxes_dict[obj_name]
                     res_data = extract_color_info(trm_imges_dict[obj_name])
                     #print("(r, g, b, h, s, v): ", res_data[0][4]) #Debug用
     
-                    for input_data, bbox_info in zip(res_data, bboxes_info):
+                    for input_data, bbox_data in zip(res_data, bboxes_arr):
                         chunk_list = []
+                        chunk_list4draw = []
+
                         input_data = np.array(input_data[4])
                         pred, label_name = inference(input_data,  clf)
 
+                        bbox_data = bbox_data.tolist()
+
                         #bboxes_info
-                        chunk_list = bbox_info.tolist()
-                        chunk_list.append(label_name)
-                        ###chunk_list.append("信号色の確率値入れる")
-                        chunk_list.append(0.888)
-                        mass_list.append(chunk_list)
+                        obj_info.object_class      = obj_name
+                        obj_info.xmin              = bbox_data[0]
+                        obj_info.ymin              = bbox_data[1]
+                        obj_info.xmax              = bbox_data[2]
+                        obj_info.ymax              = bbox_data[3]
+                        obj_info.probability       = bbox_data[4]
+                        obj_info.color_class       = label_name
+                        obj_info.color_probability = 9.99999 #後で確率値を出すようにする
 
-                        array_tlx.append(bbox_info.tolist()[0])
-                        array_tly.append(bbox_info.tolist()[1])
-                        array_brx.append(bbox_info.tolist()[2])
-                        array_bry.append(bbox_info.tolist()[3])
-                        array_obj_pval.append(bbox_info.tolist()[4])
-                        array_color_label.append(label_name)
-                        array_color_pval.append(0.888)
-                    
-                    #print(np.array(mass_list)) #Debug用
-                    result[obj_name] = mass_list
-                    
-                    if obj_name == "traffic_signal":
-                        obj_info.traffic_top_left_x = array_tlx
-                        obj_info.traffic_top_left_y = array_tly
-                        obj_info.traffic_bottom_right_x = array_brx
-                        obj_info.traffic_bottom_right_y = array_bry
-                        obj_info.traffic_pval = array_obj_pval
-                        obj_info.traffic_color_label = array_color_label
-                        obj_info.traffic_color_pval = array_color_pval
-                    else:
-                        obj_info.pedestrian_top_left_x = array_tlx
-                        obj_info.pedestrian_top_left_y = array_tly
-                        obj_info.pedestrian_bottom_right_x = array_brx
-                        obj_info.pedestrian_bottom_right_y = array_bry
-                        obj_info.pedestrian_pval = array_obj_pval
-                        obj_info.pedestrian_color_label = array_color_label
-                        obj_info.pedestrian_color_pval = array_color_pval
+                        chunk_list.append(obj_info)
+                        bbox_info = bbox(bounding_box=chunk_list)
+                        mass_list4pub.append(bbox_info)
 
-                    array_tlx = []
-                    array_tly = []
-                    array_brx = []
-                    array_bry = []
-                    array_obj_pval = []
-                    array_color_label = []
-                    array_color_pval = []
+                        chunk_list4draw = [bbox_data[0], bbox_data[1], bbox_data[2], bbox_data[3], bbox_data[4], label_name, 9.99999]
+                        mass_list4draw.append(chunk_list4draw)
+                    
+                    bboxes_info = bboxes(bounding_boxes=mass_list4pub)
+                    result[obj_name] = mass_list4draw
 
                 image  = draw_bboxes(image, result)
 
+                #print文はデバック用
                 print(result)
-
-                pub.publish(obj_info)
-                rate.sleep()                
+                pub.publish(bboxes_info)            
 
                 del result                        
                 
@@ -200,7 +176,7 @@ def cam(arg, detector):
             for img_path in imgs_path:
                 img_name = os.path.basename(img_path)
                 img = cv2.imread(img_path)
-                image, bboxes, _, _ = obj_inference(detector, img, count, image_name=img_name, flag=save_flag)
+                image, bounding_boxes, _, _ = obj_inference(detector, img, count, image_name=img_name, flag=save_flag)
                 count += 1
             break
 

@@ -3,14 +3,15 @@ project(cornernet_lite_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
+#set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  rospy
-  std_msgs
-  message_generation
+    std_msgs
+    rospy
+    message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,6 +51,8 @@ find_package(catkin REQUIRED COMPONENTS
  add_message_files(
    FILES
    object_info.msg
+   bboxes.msg
+   bbox.msg
 ##   Message2.msg
  )
 
@@ -69,8 +72,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
-   DEPENDENCIES
-   std_msgs
+  DEPENDENCIES
+  std_msgs
  )
 
 ################################################
@@ -105,8 +108,9 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES cornernet_lite_ros
-  CATKIN_DEPENDS rospy std_msgs
+#  CATKIN_DEPENDS rospy std_msgs
 #  DEPENDS system_lib
+  CATKIN_DEPENDS rospy std_msgs
 )
 
 ###########

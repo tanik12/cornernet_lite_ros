@@ -131,7 +131,7 @@ def color_info(img):
 def extract_color_info(images):
     feat_list = []
     hist_clr = np.array([])
-    print(len(images))
+    ###print(len(images))
     
     for img in images:
         tmpB = []
