@@ -1,16 +1,13 @@
 import rospy
 from sensor_msgs.msg import Image
-
 from core.detectors import CornerNet_Squeeze
 from core.vis_utils import draw_bboxes, extract_specific_object
-
 from cornernet_lite_ros.msg import object_info, bbox, bboxes
 from cv_bridge import CvBridge, CvBridgeError
 
 import sys
 #sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
-
 import glob
 import os
 
@@ -28,11 +25,11 @@ class ObjectDetectionCornerNetLite:
 
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber("image_data", Image, self.callback)
-        #self.arg = sys.argv
-        self.arg = "camera"
+        self.arg = sys.argv
         self.data_path = "/home/gisen/Documents/own_dataset/traffic_light_dataset/traffic_light/*"
         self.imgs_path = self.load_color4train(self.data_path)
-        self.save_flag = True
+        self.imshow_flag = False
+        self.save_flag = False
 
         self.trm_imges_dict    = {}
         self.bboxes_dict       = {}
@@ -91,10 +88,12 @@ class ObjectDetectionCornerNetLite:
         return trm_imges_dict, bboxes_dict
     
     def run(self, arg, detector, frame):
-        print(arg)    
+        if len(arg) == 1:
+            arg.append("camera")
+            
         pub = rospy.Publisher('/bboxes_info', bboxes, queue_size=1)
 
-        if arg == "video" or arg == "camera":              
+        if arg[1] == "camera":              
             image, bounding_boxes, bboxes_traffic, bboxes_pdstrn = self.obj_inference(detector, frame)
 
             self.trm_imges_dict, self.bboxes_dict = self.trimming(image, bboxes_traffic, bboxes_pdstrn)
@@ -147,23 +146,27 @@ class ObjectDetectionCornerNetLite:
                 pub.publish(bboxes_info)            
 
                 self.result = {}               
-                #del result                        
     
-            # 加工なし画像を表示する
-            cv2.imshow('Raw Frame', image)
+            if self.imshow_flag:
+                # 加工なし画像を表示する
+                cv2.imshow('Raw Frame', image)
+    
+                # キー入力でqを押したら終了する
+                k = cv2.waitKey(1)
+                if k == ord('q'):
+                    cv2.destroyAllWindows()
+                    sys.exit()
 
-            # キー入力でqを押したら終了する
-            k = cv2.waitKey(1)
-            if k == ord('q'):
-                cv2.destroyAllWindows()
-                sys.exit()
-        else:
+        elif arg[1] == "save":
             for img_path in self.imgs_path:
                 img_name = os.path.basename(img_path)
                 img = cv2.imread(img_path)
                 image, bounding_boxes, _, _ = self.obj_inference(detector, img, self.count, image_name=img_name, flag=self.save_flag)
                 self.count += 1
                 break
+        else:
+            print("コマンドライン引数の第2引数は、camera or save のどれかを指定してください。")
+            sys.exit()
         
     #Falseにするとトリミング画像を保存しない
     def obj_inference(self, detector, image, count=1, image_name=None, flag=False):
@@ -182,9 +185,5 @@ class ObjectDetectionCornerNetLite:
 
 if __name__ == "__main__":
     rospy.init_node("cornernet_ros")
-    #args = sys.argv
     instance = ObjectDetectionCornerNetLite()
-    #instance.run(instance.args[1], instance.detector)
-    #instance.run("camera", instance.detector)
-
     rospy.spin()
