@@ -6,7 +6,7 @@ from .py_utils import TopPool, BottomPool, LeftPool, RightPool
 from .py_utils.utils import convolution, corner_pool, residual
 from .py_utils.losses import CornerNet_Loss
 from .py_utils.modules import hg_module, hg, hg_net
-
+     
 class fire_module(nn.Module):
     def __init__(self, inp_dim, out_dim, sr=2, stride=1):
         super(fire_module, self).__init__()
@@ -56,7 +56,6 @@ class model(hg_net):
             convolution(1, 256, 256, with_bn=False),
             nn.Conv2d(256, dim, (1, 1))
         )
-
     def _merge_mod(self):
         return nn.Sequential(
             nn.Conv2d(256, 256, (1, 1), bias=False),
@@ -70,6 +69,7 @@ class model(hg_net):
             residual(128, 256, stride=2),
             residual(256, 256, stride=2)
         )
+
         hg_mods = nn.ModuleList([
             hg_module(
                 4, [256, 256, 384, 384, 512], [2, 2, 2, 2, 4],
@@ -81,6 +81,7 @@ class model(hg_net):
                 make_hg_layer=make_hg_layer
             ) for _ in range(stacks)
         ])
+
         cnvs    = nn.ModuleList([convolution(3, 256, 256) for _ in range(stacks)])
         inters  = nn.ModuleList([residual(256, 256) for _ in range(stacks - 1)])
         cnvs_   = nn.ModuleList([self._merge_mod() for _ in range(stacks - 1)])
