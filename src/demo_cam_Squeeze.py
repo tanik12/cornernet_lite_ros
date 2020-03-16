@@ -49,6 +49,7 @@ class ObjectDetectionCornerNetLite:
         imgs_path = glob.glob(data_path)
         return imgs_path
     
+    #cornernet_liteの推論結果から画像をトリミングするための処理
     def trimming(self, image, bboxes_traffic, bboxes_pdstrn):
         traffic_trm_imges = []
         pdstrn_trm_imges  = []
@@ -86,7 +87,8 @@ class ObjectDetectionCornerNetLite:
         bboxes_dict = {"traffic_signal":bboxes_traffic, "pedestrian_signal":bboxes_pdstrn}
 
         return trm_imges_dict, bboxes_dict
-    
+
+    #物体認識と色認識結果をpublishする処理
     def run(self, arg, detector, frame):
         if len(arg) == 1:
             arg.append("camera")
@@ -157,6 +159,7 @@ class ObjectDetectionCornerNetLite:
                     cv2.destroyAllWindows()
                     sys.exit()
 
+        #save機能を改修中
         elif arg[1] == "save":
             for img_path in self.imgs_path:
                 img_name = os.path.basename(img_path)
@@ -168,7 +171,7 @@ class ObjectDetectionCornerNetLite:
             print("コマンドライン引数の第2引数は、camera or save のどれかを指定してください。")
             sys.exit()
         
-    #Falseにするとトリミング画像を保存しない
+    #物体認識処理の箇所。Falseにするとトリミング画像を保存しない
     def obj_inference(self, detector, image, count=1, image_name=None, flag=False):
         bboxes_traffic = ""
         bboxes_pdstrn = ""
