@@ -2,7 +2,7 @@
 import rospy
 from sensor_msgs.msg import Image
 from core.detectors import CornerNet_Squeeze
-from core.vis_utils import draw_bboxes, extract_specific_object
+from core.vis_utils import draw_bboxes, extract_specific_object, trimming
 from cornernet_lite_ros.msg import object_info, bbox, bboxes
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -12,8 +12,8 @@ import cv2
 import glob
 import os
 
-from extract_color import extract_color_info
-from  model import dir_check, load_model, inference
+from extract_color import extract_color_info              #色情報を抽出するための関数
+from  model import dir_check, load_model, color_inference #色認識モデル関連の処理
 import numpy as np
 
 class ObjectDetectionCornerNetLite:
@@ -28,8 +28,8 @@ class ObjectDetectionCornerNetLite:
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber("image_data", Image, self.callback)
         self.arg = sys.argv
-        self.data_path = "/home/gisen/Documents/own_dataset/traffic_light_dataset/traffic_light/*"
-        self.imgs_path = self.load_color4train(self.data_path)
+        self.data_path = "/home/gisen/Documents/own_dataset/traffic_light_dataset/traffic_light/*" #保存済みの車両・歩行者信号機の写真がある場所を指定。
+        self.imgs_path = glob.glob(self.data_path)
         self.imshow_flag = False
         self.save_flag = False
 
@@ -38,86 +38,67 @@ class ObjectDetectionCornerNetLite:
         self.result            = {}
 
     def callback(self, data):
-        #try:
-        cv_image = self.bridge.imgmsg_to_cv2(data, "rgb8")
-        #print(cv_image)
-        #return
-        self.run(self.arg, self.detector, cv_image)
-                
-        #except CvBridgeError as e:
-        #    print(e)
-    
-    def load_color4train(self, data_path):
-        imgs_path = glob.glob(data_path)
-        return imgs_path
-    
-    #cornernet_liteの推論結果から画像をトリミングするための処理
-    def trimming(self, image, bboxes_traffic, bboxes_pdstrn):
-        traffic_trm_imges = []
-        pdstrn_trm_imges  = []
-        trm_imges_dict    = {}
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(data, "rgb8")
+            self.run(self.arg, self.detector, cv_image)
+        except CvBridgeError as e:
+            print(e)
 
-        if bboxes_traffic.shape[0] > 0:
-            try:
-                for bbox_traffic in bboxes_traffic:
-                    x1 = int(bbox_traffic[0])
-                    y1 = int(bbox_traffic[1])
-                    x2 = int(bbox_traffic[2])
-                    y2 = int(bbox_traffic[3])
+    #real time で物体認識処理をする箇所。Falseにするとトリミング画像を保存しない
+    def obj_inference(self, detector, image, count=1, flag=False):
+        bboxes_traffic = ""
+        bboxes_pdstrn = ""
+        bboxes = detector(image)
 
-                    trm_img = image[y1:y2,x1:x2]
-                    traffic_trm_imges.append([trm_img])
-            except:
-                print("交通信号機のトリミングを試みましたが失敗しました")
-
-        if bboxes_pdstrn.shape[0] > 0:
-            try:
-                for bbox_pdstrn in bboxes_pdstrn:
-                    x1 = int(bbox_pdstrn[0])
-                    y1 = int(bbox_pdstrn[1])
-                    x2 = int(bbox_pdstrn[2])
-                    y2 = int(bbox_pdstrn[3])
-                    
-                    trm_img = image[y1:y2,x1:x2]
-                    pdstrn_trm_imges.append([trm_img])
-            except:
-                print("歩行者信号機のトリミングを試みましたが失敗しました")
-
-        trm_imges_dict["traffic_signal"]    = traffic_trm_imges
-        trm_imges_dict["pedestrian_signal"] = pdstrn_trm_imges
-        
-        bboxes_dict = {"traffic_signal":bboxes_traffic, "pedestrian_signal":bboxes_pdstrn}
-
-        return trm_imges_dict, bboxes_dict
+        #real timeでトリミング画像をsaveする場合はTrue。しない場合はFalse。
+        #動くけど似たような写真を保存しないように修正する必要あり。色認識モデルを学習させる用のもの。
+        if flag:
+            #bboxes_traffic, bboxes_pdstrn = extract_specific_object(image, bboxes, count, flag=flag)
+            _, _ = extract_specific_object(image, bboxes, self.count, flag=flag)
+            self.count += 1
+            return _, _, _, _
+        else:
+            bboxes_traffic, bboxes_pdstrn = extract_specific_object(image, bboxes, count, flag=flag)
+            return image, bboxes, bboxes_traffic, bboxes_pdstrn
+            ###image  = draw_bboxes(image, bboxes)
 
     #物体認識と色認識結果をpublishする処理
+    #argに引数がなければデフォルトで"camera"を代入。
     def run(self, arg, detector, frame):
         if len(arg) == 1:
             arg.append("camera")
             
         pub = rospy.Publisher('/bboxes_info', bboxes, queue_size=1)
 
-        if arg[1] == "camera":              
-            image, bounding_boxes, bboxes_traffic, bboxes_pdstrn = self.obj_inference(detector, frame)
+        if arg[1] == "camera":
+            if self.save_flag:
+                _, _, _, _ = self.obj_inference(detector, frame, flag=self.save_flag)
+                return
+            else:
+                #現状、[変数名：bounding_boxes]を使っていないが将来的には使用するので残しておく。
+                image, bounding_boxes, bboxes_traffic, bboxes_pdstrn = self.obj_inference(detector, frame, flag=self.save_flag)
 
-            self.trm_imges_dict, self.bboxes_dict = self.trimming(image, bboxes_traffic, bboxes_pdstrn)
+            self.trm_imges_dict, self.bboxes_dict = trimming(image, bboxes_traffic, bboxes_pdstrn)
 
+            #交通信号機や歩行者信号機が1つでもあったらpublishする。
             if len(self.trm_imges_dict["traffic_signal"]) + len(self.trm_imges_dict["pedestrian_signal"]) > 0:
                 mass_list4pub = []
-                print("信号機の数: ", len(self.bboxes_dict["traffic_signal"]), "歩行者信号機の数: ", len(self.bboxes_dict["pedestrian_signal"]))
+                print("信号機の数: ", len(self.bboxes_dict["traffic_signal"]), "歩行者信号機の数: ", len(self.bboxes_dict["pedestrian_signal"])) 
                 for obj_name in ["traffic_signal", "pedestrian_signal"]:
                     mass_list4draw = []
-                
+                    
+                    #bboxes_arrはndarrayであり、その中にはlistが格納されていることに注意。ここは後ほど修正。
+                    #color_infoesはlistを入れ子にしている。
                     bboxes_arr = self.bboxes_dict[obj_name]
-                    res_data = extract_color_info(self.trm_imges_dict[obj_name])
-                    #print("(r, g, b, h, s, v): ", res_data[0][4]) #Debug用
+                    color_infoes = extract_color_info(self.trm_imges_dict[obj_name]) #色認識機に入れる入力
+                    #print("(r, g, b, h, s, v): ", color_infoes[0][4]) #Debug用.row:bounding boxの何番目か, col:色情報
 
-                    for input_data, bbox_data in zip(res_data, bboxes_arr):
+                    for input_data, bbox_data in zip(color_infoes, bboxes_arr):
                         obj_info = object_info()
                         chunk_list = []
 
                         input_data = np.array(input_data[4])
-                        pred, label_name = inference(input_data,  self.clf)
+                        pred, label_name = color_inference(input_data,  self.clf)
 
                         bbox_data = bbox_data.tolist()
 
@@ -129,7 +110,7 @@ class ObjectDetectionCornerNetLite:
                         obj_info.ymax              = bbox_data[3]
                         obj_info.probability       = bbox_data[4]
                         obj_info.color_class       = label_name
-                        obj_info.color_probability = 9.99999 #後で確率値を出すようにする
+                        obj_info.color_probability = 9.99999 #後で確率値を出すようにする.少々お待ちください。[変数名:pre]が入る。
 
                         chunk_list.append(obj_info)
                         bbox_info = bbox(bounding_box=chunk_list)
@@ -148,7 +129,6 @@ class ObjectDetectionCornerNetLite:
                 print("=======================")
 
                 pub.publish(bboxes_info)            
-
                 self.result = {}               
     
             if self.imshow_flag:
@@ -161,32 +141,16 @@ class ObjectDetectionCornerNetLite:
                     cv2.destroyAllWindows()
                     sys.exit()
 
-        #save機能を改修中
+        #保存済みの画像をトリミングしてsaveする機能。色認識モデルを学習させる用のもの。
         elif arg[1] == "save":
+            self.save_flag = True
             for img_path in self.imgs_path:
-                img_name = os.path.basename(img_path)
                 img = cv2.imread(img_path)
-                image, bounding_boxes, _, _ = self.obj_inference(detector, img, self.count, image_name=img_name, flag=self.save_flag)
+                _, _, _, _ = self.obj_inference(detector, img, self.count, flag=self.save_flag)
                 self.count += 1
-                break
         else:
             print("コマンドライン引数の第2引数は、camera or save のどれかを指定してください。")
             sys.exit()
-        
-    #物体認識処理の箇所。Falseにするとトリミング画像を保存しない
-    def obj_inference(self, detector, image, count=1, image_name=None, flag=False):
-        bboxes_traffic = ""
-        bboxes_pdstrn = ""
-    
-        bboxes = detector(image)
-        if flag:
-            bboxes_traffic, bboxes_pdstrn = extract_specific_object(image, bboxes, count, image_name=image_name, flag=flag)
-        else:
-            bboxes_traffic, bboxes_pdstrn = extract_specific_object(image, bboxes, count, image_name=image_name, flag=flag)
-        
-            ###image  = draw_bboxes(image, bboxes)
-    
-        return image, bboxes, bboxes_traffic, bboxes_pdstrn
 
 if __name__ == "__main__":
     rospy.init_node("cornernet_lite_node")

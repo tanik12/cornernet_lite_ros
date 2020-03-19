@@ -69,6 +69,7 @@ def draw_bboxes_org(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
             )
     return image
 
+#add tani
 def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.45, colors=None):
 #def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
     image = image.copy()
@@ -120,7 +121,8 @@ def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.45, colors=None):
             )
     return image
 
-def extract_specific_object(image, bboxes, count=1, image_name=None, thresh=0.35, flag=False):
+#add tani
+def extract_specific_object(image, bboxes, count=1, thresh=0.35, flag=False):
     if flag:
         img2 = image.copy()
         _, traffic_signal_dir, pedestrian_signal_dir = check_dir()
@@ -128,7 +130,7 @@ def extract_specific_object(image, bboxes, count=1, image_name=None, thresh=0.35
 
         for item in exstract_list:
             idx = bboxes[item][:, -1] > thresh
-        
+
             #error処理もちゃんと入れること
             for bbox in bboxes[item][idx]:
                 #intじゃないとエラーが出る。
@@ -156,10 +158,46 @@ def extract_specific_object(image, bboxes, count=1, image_name=None, thresh=0.35
         bboxes_traffic = bboxes["traffic signal"][idx_traffic]
         bboxes_pdstrn = bboxes["pedestrian signal"][idx_pdstrn]
 
-        return bboxes_traffic, bboxes_pdstrn            
+        return bboxes_traffic, bboxes_pdstrn
 
+#add tani
+#cornernet_liteの推論結果から画像をトリミングするための処理
+def trimming(image, bboxes_traffic, bboxes_pdstrn):
+    traffic_trm_imges = []
+    pdstrn_trm_imges  = []
+    trm_imges_dict    = {}
+    if bboxes_traffic.shape[0] > 0:
+        try:
+            for bbox_traffic in bboxes_traffic:
+                x1 = int(bbox_traffic[0])
+                y1 = int(bbox_traffic[1])
+                x2 = int(bbox_traffic[2])
+                y2 = int(bbox_traffic[3])
+                trm_img = image[y1:y2,x1:x2]
+                traffic_trm_imges.append([trm_img])
+        except:
+            print("交通信号機のトリミングを試みましたが失敗しました")
+    if bboxes_pdstrn.shape[0] > 0:
+        try:
+            for bbox_pdstrn in bboxes_pdstrn:
+                x1 = int(bbox_pdstrn[0])
+                y1 = int(bbox_pdstrn[1])
+                x2 = int(bbox_pdstrn[2])
+                y2 = int(bbox_pdstrn[3])
+                
+                trm_img = image[y1:y2,x1:x2]
+                pdstrn_trm_imges.append([trm_img])
+        except:
+            print("歩行者信号機のトリミングを試みましたが失敗しました")
+    trm_imges_dict["traffic_signal"]    = traffic_trm_imges
+    trm_imges_dict["pedestrian_signal"] = pdstrn_trm_imges
+    
+    bboxes_dict = {"traffic_signal":bboxes_traffic, "pedestrian_signal":bboxes_pdstrn}
+    return trm_imges_dict, bboxes_dict
+
+#add tani
 def check_dir():
-    current_path = os.getcwd()
+    current_path = os.getcwd() + "/src/cornernet_lite_ros/src"
     save_parent_dir = current_path + "/trim_img/"
     save_child_dir_1 = current_path + "/trim_img/traffic_signal"
     save_child_dir_2 = current_path + "/trim_img/pedestrian_signal"
