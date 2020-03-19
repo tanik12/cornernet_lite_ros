@@ -30,11 +30,13 @@ class CornerNet_Squeeze(Base):
         #model_path = get_file_path("..", "cache", "nnet", "CornerNet_Squeeze", "CornerNet_Squeeze_500000.pkl")
 
         cfg_sys, cfg_db = load_cfg(cfg_path)
+
         sys_cfg = SystemConfig().update_config(cfg_sys)
         voc    = VOC(cfg_db)
         #coco    = COCO(cfg_db)
 
         cornernet = load_nnet(sys_cfg, model())
+
         super(CornerNet_Squeeze, self).__init__(voc, cornernet, cornernet_inference, model=model_path)
         #super(CornerNet_Squeeze, self).__init__(coco, cornernet, cornernet_inference, model=model_path)
 
