@@ -1,3 +1,4 @@
+#!/usr/bin/env /home/gisen/.pyenv/versions/anaconda3-2019.10/envs/CornerNet_Lite/bin/python
 import rospy
 from sensor_msgs.msg import Image
 from core.detectors import CornerNet_Squeeze
@@ -19,7 +20,8 @@ class ObjectDetectionCornerNetLite:
     def __init__(self):
         self.detector = CornerNet_Squeeze()
         self.current_path = os.getcwd()
-        self.model_dirpath = self.current_path + "/model"
+        self.model_dirpath = self.current_path + "/src/cornernet_lite_ros/src/model" #rosrunでpathを解決するための一時的な対策
+        #self.model_dirpath = self.current_path + "/model" #cornernet_lite_ros/src/ の中でdemo_cam_Squeeze.pyを実行したいのであればこれを使う。
         self.clf = load_model(self.model_dirpath)
         self.count = 1
 
