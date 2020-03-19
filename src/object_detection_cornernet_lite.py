@@ -31,7 +31,7 @@ class ObjectDetectionCornerNetLite:
         self.data_path = "/home/gisen/Documents/own_dataset/traffic_light_dataset/traffic_light/*" #保存済みの車両・歩行者信号機の写真がある場所を指定。
         self.imgs_path = glob.glob(self.data_path)
         self.imshow_flag = False
-        self.save_flag = True
+        self.save_flag = False
 
         self.trm_imges_dict    = {}
         self.bboxes_dict       = {}
