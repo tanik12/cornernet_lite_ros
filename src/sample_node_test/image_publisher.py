@@ -19,7 +19,8 @@ def camera_open():
         sys.exit()
 
 def image_capture():
-    rospy.init_node('operator', anonymous=True)
+    rospy.init_node('pub_image_node')
+    #rospy.init_node('publisher_image_sample', anonymous=True)
     pub = rospy.Publisher('image_data', Image, queue_size=10)
     # read image
     cap = camera_open()   

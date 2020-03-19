@@ -189,6 +189,6 @@ class ObjectDetectionCornerNetLite:
         return image, bboxes, bboxes_traffic, bboxes_pdstrn
 
 if __name__ == "__main__":
-    rospy.init_node("cornernet_ros")
+    rospy.init_node("cornernet_lite_node")
     instance = ObjectDetectionCornerNetLite()
     rospy.spin()
