@@ -28,7 +28,7 @@ def load_model(model_dirpath):
         print("Do not exist model file! Please make model file.", e)
         sys.exit()
 
-def inference(x_train, model):
+def color_inference(x_train, model):
     x_train = x_train.reshape(1, -1)
     pred = model.predict(x_train)
     label_name = label_dict[pred[0]]
@@ -42,5 +42,5 @@ if __name__ == "__main__":
     #test data
     test_x = np.array([64.4052, 85.112, 87.6772, 102.0968, 64.3176, 89.7904])
     test_y = np.array([0])
-    pred_class = inference(test_x, model_dirpath)
+    pred_class = color_inference(test_x, model_dirpath)
     print("予想ラベル出力: ", pred_class)

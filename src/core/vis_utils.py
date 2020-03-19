@@ -1,72 +1,77 @@
-import cv2
 import numpy as np
 import os
+
+import sys
+sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
+import cv2
 
 #original code
 
 #def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
-###def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
-###    """Draws bounding boxes on an image.
-###
-###    Args:
-###        image: An image in OpenCV format
-###        bboxes: A dictionary representing bounding boxes of different object
-###            categories, where the keys are the names of the categories and the
-###            values are the bounding boxes. The bounding boxes of category should be
-###            stored in a 2D NumPy array, where each row is a bounding box (x1, y1,
-###            x2, y2, score).
-###        font_size: (Optional) Font size of the category names.
-###        thresh: (Optional) Only bounding boxes with scores above the threshold
-###            will be drawn.
-###        colors: (Optional) Color of bounding boxes for each category. If it is
-###            not provided, this function will use random color for each category.
-###
-###    Returns:
-###        An image with bounding boxes.
-###    """
-###
-###    image = image.copy()
-###
-###    for cat_name in bboxes:
-###        keep_inds = bboxes[cat_name][:, -1] > thresh
-###        cat_size  = cv2.getTextSize(cat_name, cv2.FONT_HERSHEY_SIMPLEX, font_size, 2)[0]
-###        
-###        if colors is None:
-###            color = np.random.random((3, )) * 0.6 + 0.4
-###            color = (color * 255).astype(np.int32).tolist()
-###        else:
-###            color = colors[cat_name]
-###
-###        for bbox in bboxes[cat_name][keep_inds]:
-###            bbox = bbox[0:4].astype(np.int32)
-###            if bbox[1] - cat_size[1] - 2 < 0:
-###                cv2.rectangle(image,
-###                    (bbox[0], bbox[1] + 2),
-###                    (bbox[0] + cat_size[0], bbox[1] + cat_size[1] + 2),
-###                    color, -1
-###                )
-###                cv2.putText(image, cat_name,
-###                    (bbox[0], bbox[1] + cat_size[1] + 2),
-###                    cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 0, 0), thickness=1
-###                )
-###            else:
-###                cv2.rectangle(image,
-###                    (bbox[0], bbox[1] - cat_size[1] - 2),
-###                    (bbox[0] + cat_size[0], bbox[1] - 2),
-###                    color, -1
-###                )
-###                cv2.putText(image, cat_name,
-###                    (bbox[0], bbox[1] - 2),
-###                    cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 0, 0), thickness=1
-###                )
-###            cv2.rectangle(image,
-###                (bbox[0], bbox[1]),
-###                (bbox[2], bbox[3]),
-###                color, 2
-###            )
-###    return image
+def draw_bboxes_org(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
+    """Draws bounding boxes on an image.
 
-def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
+    Args:
+        image: An image in OpenCV format
+        bboxes: A dictionary representing bounding boxes of different object
+            categories, where the keys are the names of the categories and the
+            values are the bounding boxes. The bounding boxes of category should be
+            stored in a 2D NumPy array, where each row is a bounding box (x1, y1,
+            x2, y2, score).
+        font_size: (Optional) Font size of the category names.
+        thresh: (Optional) Only bounding boxes with scores above the threshold
+            will be drawn.
+        colors: (Optional) Color of bounding boxes for each category. If it is
+            not provided, this function will use random color for each category.
+
+    Returns:
+        An image with bounding boxes.
+    """
+
+    image = image.copy()
+
+    for cat_name in bboxes:
+        keep_inds = bboxes[cat_name][:, -1] > thresh
+        cat_size  = cv2.getTextSize(cat_name, cv2.FONT_HERSHEY_SIMPLEX, font_size, 2)[0]
+        
+        if colors is None:
+            color = np.random.random((3, )) * 0.6 + 0.4
+            color = (color * 255).astype(np.int32).tolist()
+        else:
+            color = colors[cat_name]
+
+        for bbox in bboxes[cat_name][keep_inds]:
+            bbox = bbox[0:4].astype(np.int32)
+            if bbox[1] - cat_size[1] - 2 < 0:
+                cv2.rectangle(image,
+                    (bbox[0], bbox[1] + 2),
+                    (bbox[0] + cat_size[0], bbox[1] + cat_size[1] + 2),
+                    color, -1
+                )
+                cv2.putText(image, cat_name,
+                    (bbox[0], bbox[1] + cat_size[1] + 2),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 0, 0), thickness=1
+                )
+            else:
+                cv2.rectangle(image,
+                    (bbox[0], bbox[1] - cat_size[1] - 2),
+                    (bbox[0] + cat_size[0], bbox[1] - 2),
+                    color, -1
+                )
+                cv2.putText(image, cat_name,
+                    (bbox[0], bbox[1] - 2),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 0, 0), thickness=1
+                )
+            cv2.rectangle(image,
+                (bbox[0], bbox[1]),
+                (bbox[2], bbox[3]),
+                color, 2
+            )
+    return image
+
+#add tani
+def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.45, colors=None):
+#def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
     image = image.copy()
     name_dict = {"traffic_signal_blue":"ts_blue", "traffic_signal_red":"ts_red", "traffic_signal_yellow":"ts_yellow", "traffic_signal_unknown":"ts_unknown",
                  "pedestrian_signal_blue":"ps_blue", "pedestrian_signal_red":"ps_red", "pedestrian_signal_unknown":"ps_unknown"}
@@ -116,7 +121,8 @@ def draw_bboxes(image, bboxes, font_size=0.5, thresh=0.35, colors=None):
             )
     return image
 
-def extract_specific_object(image, bboxes, count=1, image_name=None, thresh=0.35, flag=False):
+#add tani
+def extract_specific_object(image, bboxes, count=1, thresh=0.35, flag=False):
     if flag:
         img2 = image.copy()
         _, traffic_signal_dir, pedestrian_signal_dir = check_dir()
@@ -124,7 +130,7 @@ def extract_specific_object(image, bboxes, count=1, image_name=None, thresh=0.35
 
         for item in exstract_list:
             idx = bboxes[item][:, -1] > thresh
-        
+
             #error処理もちゃんと入れること
             for bbox in bboxes[item][idx]:
                 #intじゃないとエラーが出る。
@@ -152,10 +158,46 @@ def extract_specific_object(image, bboxes, count=1, image_name=None, thresh=0.35
         bboxes_traffic = bboxes["traffic signal"][idx_traffic]
         bboxes_pdstrn = bboxes["pedestrian signal"][idx_pdstrn]
 
-        return bboxes_traffic, bboxes_pdstrn            
+        return bboxes_traffic, bboxes_pdstrn
 
+#add tani
+#cornernet_liteの推論結果から画像をトリミングするための処理
+def trimming(image, bboxes_traffic, bboxes_pdstrn):
+    traffic_trm_imges = []
+    pdstrn_trm_imges  = []
+    trm_imges_dict    = {}
+    if bboxes_traffic.shape[0] > 0:
+        try:
+            for bbox_traffic in bboxes_traffic:
+                x1 = int(bbox_traffic[0])
+                y1 = int(bbox_traffic[1])
+                x2 = int(bbox_traffic[2])
+                y2 = int(bbox_traffic[3])
+                trm_img = image[y1:y2,x1:x2]
+                traffic_trm_imges.append([trm_img])
+        except:
+            print("交通信号機のトリミングを試みましたが失敗しました")
+    if bboxes_pdstrn.shape[0] > 0:
+        try:
+            for bbox_pdstrn in bboxes_pdstrn:
+                x1 = int(bbox_pdstrn[0])
+                y1 = int(bbox_pdstrn[1])
+                x2 = int(bbox_pdstrn[2])
+                y2 = int(bbox_pdstrn[3])
+                
+                trm_img = image[y1:y2,x1:x2]
+                pdstrn_trm_imges.append([trm_img])
+        except:
+            print("歩行者信号機のトリミングを試みましたが失敗しました")
+    trm_imges_dict["traffic_signal"]    = traffic_trm_imges
+    trm_imges_dict["pedestrian_signal"] = pdstrn_trm_imges
+    
+    bboxes_dict = {"traffic_signal":bboxes_traffic, "pedestrian_signal":bboxes_pdstrn}
+    return trm_imges_dict, bboxes_dict
+
+#add tani
 def check_dir():
-    current_path = os.getcwd()
+    current_path = os.getcwd() + "/src/cornernet_lite_ros/src"
     save_parent_dir = current_path + "/trim_img/"
     save_child_dir_1 = current_path + "/trim_img/traffic_signal"
     save_child_dir_2 = current_path + "/trim_img/pedestrian_signal"

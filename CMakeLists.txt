@@ -11,6 +11,7 @@ project(cornernet_lite_ros)
 find_package(catkin REQUIRED COMPONENTS
     std_msgs
     rospy
+    sensor_msgs
     message_generation
 )
 
@@ -74,6 +75,7 @@ find_package(catkin REQUIRED COMPONENTS
  generate_messages(
   DEPENDENCIES
   std_msgs
+  sensor_msgs
  )
 
 ################################################
