@@ -1,4 +1,4 @@
 <launch>
     <node pkg="cornernet_lite_ros" name="pub_image_node" type="image_publisher.py"/>
-    <node pkg="cornernet_lite_ros" name="cornernet_lite_node" type="env.sh" output="screen"/>
+    <node pkg="cornernet_lite_ros" name="cornernet_lite_node" type="run.sh" output="screen"/>
 </launch>
